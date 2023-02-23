@@ -1,0 +1,97 @@
+---
+title: "NYPD Shooting Data Project"
+output: pdf_document
+date: "2023-01-23"
+---
+
+```{r libraries, include=FALSE}
+# load libraries
+library(tidyverse)
+library(lubridate)
+library(ggplot2)
+library(fastDummies)
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Import Data
+
+The data set below provides insight into every shooting incident that occurred in NYC going back to 2006 through the end of the previous calendar year. Each record includes information about the event, the location and time of occurrence. In addition, information related to suspect and victim demographics is also included. See import code below:
+
+```{r import}
+data = read.csv('nypd_data.csv')
+```
+
+## Data Cleaning
+
+Below is a summary of the NYPD shooting data. After looking at the dataset, I made the decision to remove the following columns: Precinct, X_COORD_CD, Y_COORD_CD, Latitude, Longitude, and Lon_Lat. These variables were removed because they don't add meaningful insight unless we were to perform a more in-depth geospatial analysis. Furthermore, we kept BORO which will inform us of the general location of the shooting. Lastly, we changed OCCUR_DATE to a date variable.
+
+
+```{r clean, echo=TRUE}
+dropped = subset(data, select = -c(PRECINCT, X_COORD_CD, Y_COORD_CD, Latitude, Longitude, Lon_Lat))
+dropped$OCCUR_DATE = mdy(dropped$OCCUR_DATE)
+
+summary(dropped)
+```
+
+After viewing the "cleaned" dataset, it appears that there are missing values in multiple columns. Since there are 25,000+ observations, the most practical way to resolve this issue would be to delete the rows with missing values. 
+
+
+## Data Visualizations
+
+Below is a bar chart that compares the total number of shootings in each of New York's 5 boroughs. As shown below, Brooklyn had the most shootings during this time period followed closely by the Bronx. 
+
+```{r visual1, echo=TRUE}
+df = dropped
+
+p1 = ggplot(df, aes(BORO, fill=BORO)) + 
+     geom_bar() +
+     ggtitle('NY Shootings by Borough') +
+     xlab('BORO') +
+     ylab('Shootings')
+p1
+```
+
+In the graph below, we analyze the most dangereous times of the year (most shootings) in New York. As you can see below, the most shootings occur from June to August which is consistent with other research on U.S crime. According to VOX, people are more likely to be out when it's warm — and therefore more likely to be perpetrators or victims of crime.
+
+```{r visual2, echo=TRUE}
+
+df2 = df %>% mutate(month = month(OCCUR_DATE))
+
+p2 = ggplot(df2, aes(month, fill=factor(month))) + 
+     geom_bar() +
+     ggtitle('NY Shootings by Month') +
+     xlab('Month') +
+     ylab('Shootings')
+
+p2
+```
+
+However, this does raise additional questions. For example, population data for each of the boroughs would be helpful to calculate the shootings per capita. It's no surprise that Staten Island has the fewest shootings given the lower population density compared to Manhattan and Brooklyn - without this information the graph doesn't provide the full picture. Furthermore, it would be worthwhile to dive deeper into the time of the day when these shootings occur. Therefore, local officials could advise New Yorkers on the most dangerous times of the day so that they can adjust their schedules to minimize the probability of being a shooting victim.
+
+## Data Modeling
+
+I decided to create a logistic regression model to analyze the important factors in predicting the victim's sex. As you can see below, I had to create a new output variable (VIC_SEX_DUMMY) in order to be used in the model. 
+
+```{r model, echo=TRUE}
+
+df$VIC_SEX_DUMMY <- ifelse(df$VIC_SEX == "M", 1, 0)
+
+
+model = glm(VIC_SEX_DUMMY ~ VIC_AGE_GROUP + VIC_RACE + BORO, family=binomial(link='logit'), data=df)
+summary(model)
+```
+
+As you can see in the summary above, the victim's age appears to be very significant in predicting the victim's sex whereas the victim's race is statistically insignificant. However, this is a very simple model and I would add additional variables to improve it's predictive power in a subsequent analysis. 
+
+
+## Bias Identification
+Given that this project was assigned and that I didn't specifically choose to analyze the New York shooting data, I would argue that my personal biases didn't have a significant impact. However, there are still instances in which my biases are visible throughout the project. For example, I considered analyzing the distribution of the age of the victims, but decided against it since I assumed that the majority would fall within the under 40 age groups. I believed this to be the case because most news reports that I've read usually state that the victims of shootings are young men. I realize that this biased my analysis although it would be very insightful to view those statistics. Instead, I chose to analyze the breakdown of shootings throughout the different boroughs as well as the months in which they occur because I didn't have any prior biases that would have affected the report. 
+
+
+
+
+
+
